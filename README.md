@@ -15,6 +15,13 @@ inputs = {
 }
 ```
 
+**Before You Begin**
+
+There are a few manual setup tasks that are required in order to use this module and gather the necessary inputs. Below are the steps needed to get started using this terraform module:
+
+1. [Install the Cloud Build GitHub App](https://github.com/apps/google-cloud-build) on your GitHub account or in an organization you own. Ensure you take note of the installation id as this is one of the required module inputs
+2. Create or reuse a Github PAT and add that to secrets manager (take note of the secret ID as this is one of the required module inputs -- deploy_key_id)
+
 ## Inputs
 
 All inputs and descriptions can be located in the [Variables](./variables.tf) file
