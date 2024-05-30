@@ -38,14 +38,11 @@ resource "google_cloudbuildv2_repository" "repository" {
 resource "google_cloudbuild_trigger" "repo_trigger" {
   for_each = google_cloudbuildv2_repository.repository
   location = var.region
+  name     = each.key
 
   repository_event_config {
     repository = each.value.id
     push {
-      branch = "^${var.default_branch}$"
-    }
-
-    pull_request {
       branch = "^${var.default_branch}$"
     }
   }

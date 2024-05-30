@@ -40,7 +40,7 @@ variable "repo_owner" {
 }
 
 variable "repos" {
-  type        = list(string)
+  type        = set(string)
   description = "List of repos to add to the github cloud build connection"
 }
 
