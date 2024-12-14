@@ -1,14 +1,17 @@
-data "google_iam_policy" "serviceagent_secretAccessor" {
+data "google_iam_policy" "secretAccessor" {
   binding {
-    role    = "roles/secretmanager.secretAccessor"
-    members = ["serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"]
+    role = "roles/secretmanager.secretAccessor"
+    members = [
+      "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com",
+      "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+    ]
   }
 }
 
 resource "google_secret_manager_secret_iam_policy" "policy" {
   project     = var.project
   secret_id   = var.deploy_key_id
-  policy_data = data.google_iam_policy.serviceagent_secretAccessor.policy_data
+  policy_data = data.google_iam_policy.secretAccessor.policy_data
 }
 
 // Create the GitHub connection
@@ -42,10 +45,47 @@ resource "google_cloudbuild_trigger" "repo_trigger" {
 
   repository_event_config {
     repository = each.value.id
+    pull_request {
+      branch = "^${var.default_branch}$"
+    }
+  }
+
+  substitutions = {
+    "_PROJECT_ID"     = var.project
+    "_REGION"         = var.region
+    "_REPO_OWNER"     = var.repo_owner
+    "_DEFAULT_BRANCH" = var.default_branch
+    "_PR_TYPE"        = "$(body.pull_request.labels[*].name)"
+  }
+
+  filename = "config/cloudbuild.yaml"
+}
+
+resource "google_cloudbuild_trigger" "merge_trigger" {
+  for_each    = var.repos
+  name        = "${each.value}-merge-trigger"
+  description = "Trigger for merge to main for ${each.value}"
+  location    = var.region # Add this line
+
+  repository_event_config {
+    repository = google_cloudbuildv2_repository.repository[each.key].id
     push {
       branch = "^${var.default_branch}$"
     }
   }
 
+  substitutions = {
+    "_PROJECT_ID" = var.project
+    "_REGION"     = var.region
+    "_REPO_OWNER" = var.repo_owner
+    "_PR_TYPE"    = "$COMMIT_SHA"
+    "_IS_MERGE"   = "true"
+  }
+
   filename = "config/cloudbuild.yaml"
+
+  depends_on = [
+    google_cloudbuildv2_repository.repository,
+    google_cloudbuildv2_connection.connection
+  ]
 }
