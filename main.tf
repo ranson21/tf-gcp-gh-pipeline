@@ -1,3 +1,22 @@
+# Add Artifact Registry Reader policy
+data "google_iam_policy" "artifact_registry_reader" {
+  binding {
+    role = "roles/artifactregistry.reader"
+    members = [
+      "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com",
+      "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+    ]
+  }
+}
+
+# Apply the policy to the Artifact Registry repository
+resource "google_artifact_registry_repository_iam_policy" "docker_policy" {
+  project     = var.project
+  location    = var.region
+  repository  = "docker" # Your repository name
+  policy_data = data.google_iam_policy.artifact_registry_reader.policy_data
+}
+
 data "google_iam_policy" "secretAccessor" {
   binding {
     role = "roles/secretmanager.secretAccessor"
