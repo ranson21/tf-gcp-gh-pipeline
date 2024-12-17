@@ -90,6 +90,20 @@ resource "google_project_iam_member" "cloudbuild_security_admin" {
   member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
 }
 
+# Add DNS Administrator role to Cloud Build service account
+resource "google_project_iam_member" "cloudbuild_dns_admin" {
+  project = var.project
+  role    = "roles/dns.admin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+# You might also need it for the cloudbuild service account
+resource "google_project_iam_member" "cloudbuild_service_dns_admin" {
+  project = var.project
+  role    = "roles/dns.admin"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+}
+
 resource "google_cloudbuild_trigger" "repo_trigger" {
   for_each = {
     for repo in var.repos :
