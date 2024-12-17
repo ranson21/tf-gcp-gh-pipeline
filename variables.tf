@@ -40,8 +40,12 @@ variable "repo_owner" {
 }
 
 variable "repos" {
-  type        = set(string)
-  description = "List of repos to add to the github cloud build connection"
+  description = "List of repository configurations"
+  type = list(object({
+    name         = string
+    pr_trigger   = optional(bool, true)
+    push_trigger = optional(bool, true)
+  }))
 }
 
 variable "default_branch" {
