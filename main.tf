@@ -56,6 +56,19 @@ resource "google_cloudbuildv2_repository" "repository" {
   remote_uri        = "https://github.com/${var.repo_owner}/${each.key}.git"
 }
 
+# Add Storage Admin role to Cloud Build service accounts
+resource "google_project_iam_member" "cloudbuild_storage_admin" {
+  project = var.project
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "cloudbuild_service_storage_admin" {
+  project = var.project
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+}
+
 resource "google_cloudbuild_trigger" "repo_trigger" {
   for_each = {
     for repo in var.repos :
