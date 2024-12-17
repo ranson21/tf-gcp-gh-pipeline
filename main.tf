@@ -69,6 +69,27 @@ resource "google_project_iam_member" "cloudbuild_service_storage_admin" {
   member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 }
 
+# Add Compute Admin role to Cloud Build service accounts
+resource "google_project_iam_member" "cloudbuild_compute_admin" {
+  project = var.project
+  role    = "roles/compute.admin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+# Add compute network admin role for URL maps and SSL certificates
+resource "google_project_iam_member" "cloudbuild_network_admin" {
+  project = var.project
+  role    = "roles/compute.networkAdmin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+# Add security admin role for SSL certificates
+resource "google_project_iam_member" "cloudbuild_security_admin" {
+  project = var.project
+  role    = "roles/compute.securityAdmin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
 resource "google_cloudbuild_trigger" "repo_trigger" {
   for_each = {
     for repo in var.repos :
