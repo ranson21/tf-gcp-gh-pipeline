@@ -156,6 +156,19 @@ resource "google_project_iam_member" "cloudbuild_service_iam_admin" {
   member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 }
 
+# Add Security Admin role to Cloud Build service accounts
+resource "google_project_iam_member" "cloudbuild_security_admin_role" {
+  project = var.project
+  role    = "roles/iam.securityAdmin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "cloudbuild_service_security_admin_role" {
+  project = var.project
+  role    = "roles/iam.securityAdmin"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+}
+
 resource "google_cloudbuild_trigger" "repo_trigger" {
   for_each = {
     for repo in var.repos :
