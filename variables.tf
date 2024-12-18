@@ -53,3 +53,10 @@ variable "default_branch" {
   description = "Default branch name for matching build triggers"
   default     = "master"
 }
+
+variable "cloudbuild_roles" {
+  description = "List of roles to assign to Cloud Build service accounts"
+  type        = list(string)
+  default     = []
+}
+

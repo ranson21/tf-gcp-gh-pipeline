@@ -1,15 +1,31 @@
-# Add Artifact Registry Reader policy
+
+# Create a locals block to define the service accounts and role assignments
+locals {
+  # Service account email formats
+  service_accounts = [
+    "${var.project_number}@cloudbuild.gserviceaccount.com",
+    "service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+  ]
+
+  # Create a flat list of role/service account pairs
+  role_assignments = distinct(flatten([
+    for role in var.cloudbuild_roles : [
+      for sa in local.service_accounts : {
+        role   = role
+        member = "serviceAccount:${sa}"
+      }
+    ]
+  ]))
+}
+
+# Single resource for Artifact Registry reader policy
 data "google_iam_policy" "artifact_registry_reader" {
   binding {
-    role = "roles/artifactregistry.reader"
-    members = [
-      "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com",
-      "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-    ]
+    role    = "roles/artifactregistry.reader"
+    members = [for sa in local.service_accounts : "serviceAccount:${sa}"]
   }
 }
 
-# Apply the policy to the Artifact Registry repository
 resource "google_artifact_registry_repository_iam_policy" "docker_policy" {
   project     = var.project
   location    = var.region
@@ -17,13 +33,11 @@ resource "google_artifact_registry_repository_iam_policy" "docker_policy" {
   policy_data = data.google_iam_policy.artifact_registry_reader.policy_data
 }
 
+# Single resource for Secret Manager accessor policy
 data "google_iam_policy" "secretAccessor" {
   binding {
-    role = "roles/secretmanager.secretAccessor"
-    members = [
-      "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com",
-      "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-    ]
+    role    = "roles/secretmanager.secretAccessor"
+    members = [for sa in local.service_accounts : "serviceAccount:${sa}"]
   }
 }
 
@@ -33,6 +47,19 @@ resource "google_secret_manager_secret_iam_policy" "policy" {
   policy_data = data.google_iam_policy.secretAccessor.policy_data
 }
 
+# Dynamic project-level IAM bindings
+resource "google_project_iam_member" "cloudbuild_permissions" {
+  for_each = {
+    for idx, assignment in local.role_assignments :
+    "${assignment.role}-${idx}" => assignment
+  }
+
+  project = var.project
+  role    = each.value.role
+  member  = each.value.member
+}
+
+# Rest of your existing resources remain the same
 resource "google_cloudbuildv2_connection" "connection" {
   project  = var.project
   location = var.region
@@ -54,119 +81,6 @@ resource "google_cloudbuildv2_repository" "repository" {
   name              = each.key
   parent_connection = google_cloudbuildv2_connection.connection.name
   remote_uri        = "https://github.com/${var.repo_owner}/${each.key}.git"
-}
-
-# Add Storage Admin role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_storage_admin" {
-  project = var.project
-  role    = "roles/storage.admin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_storage_admin" {
-  project = var.project
-  role    = "roles/storage.admin"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-}
-
-# Add Compute Admin role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_compute_admin" {
-  project = var.project
-  role    = "roles/compute.admin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-# Add compute network admin role for URL maps and SSL certificates
-resource "google_project_iam_member" "cloudbuild_network_admin" {
-  project = var.project
-  role    = "roles/compute.networkAdmin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-# Add security admin role for SSL certificates
-resource "google_project_iam_member" "cloudbuild_security_admin" {
-  project = var.project
-  role    = "roles/compute.securityAdmin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-# Add DNS Administrator role to Cloud Build service account
-resource "google_project_iam_member" "cloudbuild_dns_admin" {
-  project = var.project
-  role    = "roles/dns.admin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-# You might also need it for the cloudbuild service account
-resource "google_project_iam_member" "cloudbuild_service_dns_admin" {
-  project = var.project
-  role    = "roles/dns.admin"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-}
-
-# Add Service Account Admin role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_service_account_admin" {
-  project = var.project
-  role    = "roles/iam.serviceAccountAdmin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_account_admin_service" {
-  project = var.project
-  role    = "roles/iam.serviceAccountAdmin"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-}
-
-# Add Service Account User role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_service_account_user" {
-  project = var.project
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_account_user_service" {
-  project = var.project
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-}
-
-# Add Cloud Functions Admin role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_functions_admin" {
-  project = var.project
-  role    = "roles/cloudfunctions.admin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_functions_admin" {
-  project = var.project
-  role    = "roles/cloudfunctions.admin"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-}
-
-# Add IAM Admin role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_iam_admin" {
-  project = var.project
-  role    = "roles/resourcemanager.projectIamAdmin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_iam_admin" {
-  project = var.project
-  role    = "roles/resourcemanager.projectIamAdmin"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
-}
-
-# Add Security Admin role to Cloud Build service accounts
-resource "google_project_iam_member" "cloudbuild_security_admin_role" {
-  project = var.project
-  role    = "roles/iam.securityAdmin"
-  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "cloudbuild_service_security_admin_role" {
-  project = var.project
-  role    = "roles/iam.securityAdmin"
-  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 }
 
 resource "google_cloudbuild_trigger" "repo_trigger" {
