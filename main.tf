@@ -104,6 +104,32 @@ resource "google_project_iam_member" "cloudbuild_service_dns_admin" {
   member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 }
 
+# Add Service Account Admin role to Cloud Build service accounts
+resource "google_project_iam_member" "cloudbuild_service_account_admin" {
+  project = var.project
+  role    = "roles/iam.serviceAccountAdmin"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "cloudbuild_service_account_admin_service" {
+  project = var.project
+  role    = "roles/iam.serviceAccountAdmin"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+}
+
+# Add Service Account User role to Cloud Build service accounts
+resource "google_project_iam_member" "cloudbuild_service_account_user" {
+  project = var.project
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${var.project_number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "cloudbuild_service_account_user_service" {
+  project = var.project
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+}
+
 resource "google_cloudbuild_trigger" "repo_trigger" {
   for_each = {
     for repo in var.repos :
